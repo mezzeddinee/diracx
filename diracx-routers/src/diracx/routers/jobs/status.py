@@ -173,6 +173,9 @@ async def add_heartbeat(
     receive job commands from the WMS. It also results in stalled jobs being
     restored to the RUNNING status.
 
+    Commands are delivered as part of the heartbeat control loop and currently
+    represent queued payload actions (for example a `Kill` command).
+
     The `data` parameter and return value are mappings keyed by job ID.
     """
     await check_permissions(action=ActionType.PILOT, job_db=job_db, job_ids=list(data))

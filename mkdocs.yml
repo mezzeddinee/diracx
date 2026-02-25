@@ -103,6 +103,7 @@ nav:
       - Chart structure: admin/explanations/chart-structure.md
       - Databases: admin/explanations/database-management.md
       - Sandbox Store: admin/explanations/sandbox-store.md
+      - Job heartbeats and commands: admin/explanations/job-heartbeats-and-commands.md
     - Tutorials:
       - admin/tutorials/index.md
       - Authentication: admin/tutorials/authentication.md
