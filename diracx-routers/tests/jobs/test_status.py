@@ -985,6 +985,72 @@ def test_heartbeat(normal_user_client: TestClient, valid_job_id: int):
     )
 
 
+def test_heartbeat_restores_stalled_job(normal_user_client: TestClient, valid_job_id: int):
+    now = datetime.now(tz=timezone.utc)
+    status_payload = {
+        valid_job_id: {
+            now.isoformat(): {
+                "Status": JobStatus.STALLED,
+                "MinorStatus": "No heartbeat for too long",
+            }
+        }
+    }
+    r = normal_user_client.patch(
+        "/api/jobs/status", json=status_payload, params={"force": True}
+    )
+    r.raise_for_status()
+
+    r = normal_user_client.patch(
+        "/api/jobs/heartbeat", json={valid_job_id: {"Vsize": 9876}}
+    )
+    r.raise_for_status()
+    assert r.json() == []
+
+    r = normal_user_client.post(
+        "/api/jobs/search",
+        json={
+            "search": [
+                {"parameter": "JobID", "operator": "eq", "value": valid_job_id}
+            ]
+        },
+    )
+    r.raise_for_status()
+    data = r.json()[0]
+    assert data["Status"] == JobStatus.RUNNING
+    assert data["HeartBeatTime"] is not None
+
+
+def test_heartbeat_returns_commands_for_the_relevant_jobs(
+    normal_user_client: TestClient, valid_job_ids: list[int]
+):
+    kill_id, healthy_id, _ = valid_job_ids
+    # Queue a command only for one job.
+    r = normal_user_client.patch(
+        "/api/jobs/status",
+        json={
+            kill_id: {
+                datetime.now(timezone.utc).isoformat(): {
+                    "Status": JobStatus.KILLED,
+                    "MinorStatus": "Marked for termination",
+                }
+            }
+        },
+    )
+    r.raise_for_status()
+
+    r = normal_user_client.patch(
+        "/api/jobs/heartbeat",
+        json={
+            kill_id: {"Vsize": 2048},
+            healthy_id: {"Vsize": 1024},
+        },
+    )
+    r.raise_for_status()
+
+    commands = r.json()
+    assert commands == [{"job_id": kill_id, "command": "Kill", "arguments": ""}]
+
+
 def test_patch_metadata_doc_example(normal_user_client: TestClient, valid_job_id: int):
     # Arrange
     r = normal_user_client.post(
